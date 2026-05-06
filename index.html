@@ -4,10 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#F4EFE6" />
-<title>Local LLMs just got 2× faster on Apple Silicon — in one specific runtime</title>
-<meta name="description" content="Google's MTP drafters for Gemma 4 unlock real on-edge speedups at batch=1 — when run in the right stack with the right bundle. Visual explainer, benchmarks, copy-paste commands." />
-<meta property="og:title" content="Local LLMs just got 2× faster on Apple Silicon" />
-<meta property="og:description" content="Google's Gemma 4 MTP drafters explained, benchmarked across three runtimes on a 24 GB M4 Pro, with copy-paste commands and animated diagrams." />
+<title>Gemma 4 on edge: Multi-Token Prediction unlocks 2× decode at batch=1</title>
+<meta name="description" content="Google's MTP drafters for Gemma 4, explained visually and benchmarked across three runtimes on a 24 GB M4 Pro. The technique that was always slow at batch=1 just delivered the headline 2x — in one specific runtime." />
+<meta property="og:title" content="Gemma 4 on edge: MTP unlocks 2× decode at batch=1" />
+<meta property="og:description" content="Multi-Token Prediction for Gemma 4 explained, animated, and benchmarked. Three runtimes on Apple Silicon. One delivers the headline." />
 <meta property="og:type" content="article" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,6 +34,7 @@
   --rose-faint: #ECDADD;
   --dust: #6F7E94;
   --dust-soft: #B8C2D2;
+  --dust-faint: #DDE2EB;
   --rule: #D6C9B3;
   --rule-soft: #E8DFCE;
   --shadow-1: 0 1px 2px rgba(60, 50, 35, 0.04);
@@ -290,7 +291,7 @@ h3 {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink);
-  margin: 22px 0 8px;
+  margin: 28px 0 10px;
   letter-spacing: -0.005em;
 }
 
@@ -347,9 +348,9 @@ ul:not(.tldr ul):not(.do-dont ul) li { margin: 4px 0; padding-left: 4px; font-si
 ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
 
 /* ============================================================
-   ANIMATED DIAGRAM #1 · The Race
+   FIGURE FRAME
    ============================================================ */
-.race {
+.fig {
   background: var(--paper-soft);
   border: 1px solid var(--rule-soft);
   border-radius: 12px;
@@ -358,7 +359,7 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   box-shadow: var(--shadow-1);
 }
 
-.race-title {
+.fig-title {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -368,110 +369,149 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   text-align: center;
 }
 
-.race-row {
+.fig-caption {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 12px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   TIMELINE COMPARISON · standard vs MTP
+   ============================================================ */
+.timeline {
+  margin: 12px 0;
+}
+
+.tl-row {
   display: grid;
-  grid-template-columns: 84px 1fr 56px;
+  grid-template-columns: 86px 1fr;
   gap: 10px;
   align-items: center;
   margin: 10px 0;
 }
 
-.race-label {
-  font-size: 11.5px;
+.tl-label {
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink-2);
-  letter-spacing: 0.01em;
   line-height: 1.25;
 }
-.race-label .sub {
+.tl-label .sub {
   display: block;
   font-size: 10px;
   font-weight: 500;
   color: var(--ink-faint);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.race-track {
-  height: 22px;
-  background: var(--paper-deep);
-  border-radius: 100px;
-  overflow: hidden;
+.tl-track {
+  display: flex;
+  gap: 2px;
+  height: 26px;
   position: relative;
 }
 
-.race-fill {
+.tl-block {
   height: 100%;
-  border-radius: 100px;
-  transform-origin: left center;
-  transform: scaleX(0);
-  background: linear-gradient(90deg, var(--gold-soft), var(--gold));
-}
-
-.race-fill.standard { animation: fill-standard 4s linear infinite; }
-.race-fill.mtp {
-  background: linear-gradient(90deg, var(--sage-soft), var(--sage));
-  animation: fill-mtp 4s linear infinite;
-}
-
-@keyframes fill-standard {
-  0% { transform: scaleX(0); }
-  90% { transform: scaleX(1); }
-  100% { transform: scaleX(1); }
-}
-
-@keyframes fill-mtp {
-  0% { transform: scaleX(0); }
-  45% { transform: scaleX(1); }
-  100% { transform: scaleX(1); }
-}
-
-.race-meter {
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--paper);
+  letter-spacing: 0.02em;
+  position: relative;
+  animation: tl-fadein 4s ease-in-out infinite;
+  opacity: 0;
 }
-.race-meter .unit { color: var(--ink-faint); font-weight: 400; font-size: 9.5px; }
 
-.race-fill.standard ~ .race-meter,
-.race-row.standard .race-meter { color: var(--gold-deep); }
-.race-row.mtp .race-meter { color: var(--sage); }
+.tl-block.target {
+  background: var(--sage);
+  flex: 1 0 14%;
+  min-width: 28px;
+}
+.tl-block.draft {
+  background: var(--gold);
+  flex: 0 0 12px;
+  font-size: 0;
+}
+.tl-block.target.big {
+  background: var(--sage);
+  flex: 1 0 22%;
+  min-width: 56px;
+}
 
-.race-caption {
-  font-size: 12px;
+.tl-block.target.b1 { animation-delay: 0s; }
+.tl-block.target.b2 { animation-delay: 0.4s; }
+.tl-block.target.b3 { animation-delay: 0.8s; }
+.tl-block.target.b4 { animation-delay: 1.2s; }
+.tl-block.target.b5 { animation-delay: 1.6s; }
+
+.tl-block.draft.d1 { animation-delay: 0s; }
+.tl-block.draft.d2 { animation-delay: 0.1s; }
+.tl-block.draft.d3 { animation-delay: 0.2s; }
+.tl-block.draft.d4 { animation-delay: 0.3s; }
+.tl-block.target.big.bv { animation-delay: 0.5s; }
+
+@keyframes tl-fadein {
+  0% { opacity: 0; transform: scaleX(0.6); transform-origin: left; }
+  20% { opacity: 1; transform: scaleX(1); }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.tl-axis {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
   color: var(--ink-faint);
-  text-align: center;
-  margin-top: 12px;
-  font-style: italic;
+  margin-top: 4px;
 }
+.tl-axis-track {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.tl-meter-row {
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule);
+}
+
+.tl-meter-key {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tl-meter-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tl-meter-val .gain { color: var(--sage); margin-left: 6px; }
 
 /* ============================================================
-   ANIMATED DIAGRAM #2 · The Pipeline
+   PIPELINE · drafter -> target -> stream
    ============================================================ */
-.pipeline {
-  background: var(--paper-soft);
-  border: 1px solid var(--rule-soft);
-  border-radius: 12px;
-  padding: 18px 14px 14px;
-  margin: 22px 0;
-  box-shadow: var(--shadow-1);
-  overflow: hidden;
-}
-
-.pipeline-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin-bottom: 16px;
-  text-align: center;
-}
-
 .pipeline-stage {
   display: grid;
   grid-template-columns: 60px 1fr 58px 1fr 60px;
@@ -495,48 +535,13 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   z-index: 2;
 }
 
-.pipeline-box.drafter {
-  background: var(--gold);
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-.pipeline-box.drafter .label-sub {
-  font-size: 8.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  opacity: 0.85;
-  margin-top: 2px;
-}
+.pipeline-box.drafter { background: var(--gold); height: 50px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.pipeline-box.drafter .label-sub { font-size: 8.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: none; opacity: 0.85; margin-top: 2px; }
 
-.pipeline-box.target {
-  background: var(--sage);
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-}
-.pipeline-box.target .label-sub {
-  font-size: 8.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  opacity: 0.85;
-  margin-top: 2px;
-}
+.pipeline-box.target { background: var(--sage); height: 80px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.pipeline-box.target .label-sub { font-size: 8.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: none; opacity: 0.85; margin-top: 2px; }
 
-/* the moving tokens */
-.pipeline-flow {
-  height: 80px;
-  position: relative;
-  overflow: hidden;
-  border-top: 1px dashed var(--rule);
-  border-bottom: 1px dashed var(--rule);
-}
+.pipeline-flow { height: 80px; position: relative; overflow: hidden; border-top: 1px dashed var(--rule); border-bottom: 1px dashed var(--rule); }
 
 .tok {
   position: absolute;
@@ -556,12 +561,7 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   box-shadow: 0 1px 3px rgba(60, 50, 35, 0.15);
 }
 
-/* draft tokens emerge from drafter and travel to target */
-.tok.draft {
-  left: 0;
-  background: var(--gold);
-  animation: draft-flow 4s ease-in-out infinite;
-}
+.tok.draft { left: 0; background: var(--gold); animation: draft-flow 4s ease-in-out infinite; }
 .tok.d1 { animation-delay: 0s; }
 .tok.d2 { animation-delay: 0.15s; }
 .tok.d3 { animation-delay: 0.3s; }
@@ -574,17 +574,8 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   100% { transform: translateY(-50%) translateX(calc(100% + 2px)); opacity: 0; }
 }
 
-/* output tokens emerge from target and travel to right */
-.pipeline-out {
-  height: 80px;
-  position: relative;
-  overflow: hidden;
-}
-
-.tok.out {
-  animation: out-flow 4s ease-in-out infinite;
-  opacity: 0;
-}
+.pipeline-out { height: 80px; position: relative; overflow: hidden; }
+.tok.out { animation: out-flow 4s ease-in-out infinite; opacity: 0; }
 .tok.o1 { left: 0; animation-delay: 1.6s; background: var(--sage); }
 .tok.o2 { left: 0; animation-delay: 1.75s; background: var(--sage); }
 .tok.o3 { left: 0; animation-delay: 1.9s; background: var(--sage); }
@@ -598,7 +589,6 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   100% { transform: translateY(-50%) translateX(calc(100% + 4px)); opacity: 0; }
 }
 
-/* output stream container - shows accepted tokens */
 .pipeline-stream {
   margin-top: 14px;
   padding: 10px 12px;
@@ -610,15 +600,7 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   min-height: 36px;
   align-items: center;
 }
-
-.pipeline-stream .stream-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-right: 6px;
-}
+.pipeline-stream .stream-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-right: 6px; }
 
 .stream-tok {
   display: inline-block;
@@ -654,15 +636,93 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   color: var(--ink-soft);
 }
 .pipeline-legend .leg-item { display: inline-flex; align-items: center; gap: 5px; }
-.pipeline-legend .leg-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  display: inline-block;
-}
+.pipeline-legend .leg-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .leg-dot.drafter-d { background: var(--gold); }
 .leg-dot.target-d { background: var(--sage); }
 .leg-dot.reject-d { background: var(--rose); }
+
+/* ============================================================
+   ACCEPTANCE GRID · scenarios for k=4
+   ============================================================ */
+.scenarios {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.scen {
+  display: grid;
+  grid-template-columns: 88px 1fr 70px;
+  gap: 12px;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.scen-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.scen-label .sub { display: block; font-size: 10px; color: var(--ink-faint); font-weight: 500; margin-top: 2px; }
+
+.scen-tokens {
+  display: flex;
+  gap: 3px;
+}
+
+.scen-tok {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--paper);
+}
+.scen-tok.acc { background: var(--sage); }
+.scen-tok.rej { background: var(--rose); }
+.scen-tok.bonus { background: var(--sage); border: 1.5px dashed var(--paper); box-shadow: inset 0 0 0 1.5px var(--sage); }
+.scen-tok.skip { background: transparent; border: 1px dashed var(--rule); color: var(--ink-faint); }
+
+.scen-meter {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sage);
+  font-variant-numeric: tabular-nums;
+}
+.scen-meter.warn { color: var(--rose); }
+.scen-meter .lab { display: block; font-size: 9px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 1px; }
+
+/* ============================================================
+   MATH CARD
+   ============================================================ */
+.math-card {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 18px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  box-shadow: var(--shadow-2);
+}
+
+.math-card .math-line { display: flex; justify-content: space-between; gap: 14px; padding: 4px 0; }
+.math-card .math-line:not(:last-child) { border-bottom: 1px dashed rgba(239, 229, 210, 0.18); }
+.math-card .lbl { color: rgba(239, 229, 210, 0.6); }
+.math-card .val { color: var(--paper); font-weight: 600; }
+.math-card .val .x { color: var(--gold-soft); }
 
 /* ============================================================
    GOOGLE QUOTE / RESPONSE
@@ -701,7 +761,7 @@ ul:not(.tldr ul):not(.do-dont ul) li::marker { color: var(--gold); }
   line-height: 1.55;
 }
 .myresp::before {
-  content: "Measured on Apple Silicon";
+  content: "Measured on edge · M4 Pro · batch=1";
   display: block;
   font-size: 10.5px;
   font-weight: 700;
@@ -807,6 +867,7 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 .callout strong { color: var(--ink); }
 .callout.warn { border-left-color: var(--rose); background: rgba(165, 111, 117, 0.04); }
 .callout.win { border-left-color: var(--sage); background: rgba(95, 115, 85, 0.04); }
+.callout.dust { border-left-color: var(--dust); background: rgba(126, 138, 168, 0.05); }
 
 .callout-key {
   font-size: 10.5px;
@@ -818,8 +879,9 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 }
 .callout.warn .callout-key { color: var(--rose); }
 .callout.win .callout-key { color: var(--sage); }
+.callout.dust .callout-key { color: var(--dust); }
 
-/* ===== BUNDLE TRAP ANIMATION ===== */
+/* ===== BUNDLE TRAP ===== */
 .trap {
   display: grid;
   grid-template-columns: 1fr;
@@ -847,34 +909,12 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 .trap-card.stale .trap-head { color: var(--rose); }
 .trap-card.fresh .trap-head { color: var(--sage); }
 
-.trap-flag {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  margin: 6px 0;
-}
+.trap-flag { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin: 6px 0; }
 .trap-flag .lbl { color: var(--ink-faint); flex-grow: 1; }
-.trap-flag .val {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 100px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
+.trap-flag .val { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
 .trap-flag .val.true { background: var(--sage-faint); color: var(--sage); }
 .trap-flag .val.false { background: var(--rose-faint); color: var(--rose); }
-.trap-flag .val::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
-}
+.trap-flag .val::before { content: ""; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .trap-flag .val.true::before { background: var(--sage); }
 .trap-flag .val.false::before { background: var(--rose); animation: trap-blink 1.4s ease-in-out infinite; }
 
@@ -900,13 +940,7 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 .dd-card.do { border-left: 3px solid var(--sage); }
 .dd-card.dont { border-left: 3px solid var(--rose); }
 
-.dd-head {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
+.dd-head { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
 .dd-card.do .dd-head { color: var(--sage); }
 .dd-card.dont .dd-head { color: var(--rose); }
 
@@ -915,7 +949,7 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 .dd-card.do li::before { content: "✓"; position: absolute; left: 0; color: var(--sage); font-weight: 700; }
 .dd-card.dont li::before { content: "✕"; position: absolute; left: 0; color: var(--rose); font-weight: 700; }
 
-/* ===== REPO LINK ===== */
+/* ===== REPO CTA ===== */
 .repo-cta {
   background: var(--ink);
   color: var(--paper);
@@ -934,16 +968,7 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 }
 .repo-cta:hover { transform: translateY(-1px); color: var(--paper); text-decoration: none; }
 
-.repo-cta .repo-key {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold-soft);
-  margin-bottom: 6px;
-  display: block;
-}
+.repo-cta .repo-key { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 6px; display: block; }
 
 /* ===== FOOTER ===== */
 footer {
@@ -981,7 +1006,7 @@ footer a { color: var(--ink-soft); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .race-fill, .tok, .stream-tok, .trap-flag .val::before, .tag .dot { animation: none !important; }
+  .tl-block, .tok, .stream-tok, .trap-flag .val::before, .tag .dot { animation: none !important; opacity: 1 !important; }
 }
 </style>
 </head>
@@ -990,19 +1015,19 @@ footer a { color: var(--ink-soft); }
 
 <div class="top-meta">
   <div class="tag"><span class="dot"></span>Released this week</div>
-  <div>2026.05.06 · 8 min read</div>
+  <div>2026.05.06 · 9 min read</div>
 </div>
 
-<div class="kicker">On-Edge LLMs · Gemma 4 · MTP</div>
+<div class="kicker">Gemma 4 · On Edge · MTP Explained</div>
 
-<h1>Local LLMs just got 2× faster on Apple Silicon &mdash; <em>in one specific runtime.</em></h1>
+<h1>Gemma 4 on edge: Multi-Token Prediction unlocks 2× decode speedup &mdash; <em>in one specific runtime.</em></h1>
 
-<p class="lede">Google released Multi-Token Prediction drafters for Gemma 4 on May 5. The technique was already a known win on datacenter GPUs and Android phones; the open question was whether it would land at <strong>batch=1</strong> on Apple Silicon — the workload shape that defines on-edge LLMs today. A controlled benchmark across all three runtimes that can run Gemma 4 on a Mac shows it does, with caveats most people will miss.</p>
+<p class="lede">Google released MTP drafters for Gemma 4 on May 5. The technique was already a known win on datacenter GPUs and Android phones; the open question for Gemma 4 on edge was whether it would land at <strong>batch=1</strong> on Apple Silicon — the workload shape that defines every on-device LLM that runs on a laptop. A controlled benchmark across all three runtimes that can run Gemma 4 on a Mac shows it does, with caveats most posts will miss.</p>
 
 <div class="tldr">
   <div class="tldr-head">TL;DR</div>
   <ul>
-    <li>Google's <a href="https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/">MTP announcement</a> claims <strong>up to 3×</strong>. On-edge Apple Silicon at batch=1, the realistic ceiling is <strong>~2×</strong>, in <strong>one specific runtime</strong>.</li>
+    <li>Google's <a href="https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/">MTP announcement</a> claims <strong>up to 3×</strong>. For Gemma 4 on edge at batch=1, the realistic ceiling is <strong>~2×</strong>, in <strong>one specific runtime</strong>.</li>
     <li>That runtime is <strong>LiteRT-LM v0.11.0 + Metal GPU</strong>. Gemma 4 E4B real prompts: <strong>2.03× speedup, ~100 tok/s</strong>.</li>
     <li>Hugging Face <code>transformers</code> + MPS gives <strong>1.04–1.24×</strong>. <code>llama.cpp</code> can't engage MTP at all (no <code>gemma4_assistant</code> arch upstream).</li>
     <li>Two gotchas almost flip the conclusion: <strong>stale model bundles</strong> silently disable MTP, and the bundled synthetic benchmark hides the speedup.</li>
@@ -1029,29 +1054,66 @@ footer a { color: var(--ink-soft); }
 </div>
 
 <section>
-  <h2><span class="num">01</span>What MTP actually does</h2>
-  <p>Standard language-model decoding is sequential: the model produces one token, feeds it back, produces the next. Each token costs one full forward pass through a multi-billion-parameter network. On-edge inference makes this expensive — the GPU is fast, but the dependency chain is long.</p>
-  <p><strong>Multi-Token Prediction (MTP)</strong> breaks the chain. A small "drafter" model proposes <em>k</em> tokens at once. The big "target" model verifies them all in a single parallel forward pass. Tokens the target agrees with are accepted; the first disagreement halts the chain. The technique is provably <strong>lossless</strong> at <code>temperature=0</code> — output is identical to the target alone, just produced 2–3× faster.</p>
+  <h2><span class="num">01</span>What Multi-Token Prediction is</h2>
 
-  <div class="race">
-    <div class="race-title">Decode time per equal-length output</div>
-    <div class="race-row standard">
-      <div class="race-label">Standard<span class="sub">target only</span></div>
-      <div class="race-track"><div class="race-fill standard"></div></div>
-      <div class="race-meter">~3.6<span class="unit">s</span></div>
+  <p>Standard language-model decoding is <strong>strictly sequential</strong>. The target generates one token, feeds it back through the network, generates the next. Each token costs one full forward pass through a multi-billion-parameter model. The dependency chain cannot be parallelized — token <em>n+1</em> needs token <em>n</em> to exist first.</p>
+
+  <h3>The sequential bottleneck</h3>
+
+  <p>Visualized as a timeline of GPU work, every output token is the same big block of compute. Five tokens cost five full passes:</p>
+
+  <div class="fig">
+    <div class="fig-title">Standard decoding · 5 tokens, 5 forward passes</div>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-label">Standard<span class="sub">target only</span></div>
+        <div class="tl-track">
+          <span class="tl-block target b1">tgt</span>
+          <span class="tl-block target b2">tgt</span>
+          <span class="tl-block target b3">tgt</span>
+          <span class="tl-block target b4">tgt</span>
+          <span class="tl-block target b5">tgt</span>
+        </div>
+      </div>
+      <div class="tl-axis"><div></div><div class="tl-axis-track"><span>t=0</span><span>5 t-units</span></div></div>
     </div>
-    <div class="race-row mtp">
-      <div class="race-label">+ MTP<span class="sub">drafter + target</span></div>
-      <div class="race-track"><div class="race-fill mtp"></div></div>
-      <div class="race-meter">~1.8<span class="unit">s</span></div>
-    </div>
-    <div class="race-caption">Same output, half the wait. Loops continuously.</div>
+    <div class="fig-caption">Each block is one full target forward pass. Time scales linearly with output length.</div>
   </div>
 
-  <p>Visually, the work distribution looks like this. The drafter emits <em>k</em> candidate tokens cheaply. The target verifies them all in one shot. Accepted tokens (sage) flow into the output stream; rejected ones (rose) get discarded. Because the target verification is one pass instead of <em>k</em>, total wall-clock drops:</p>
+  <h3>MTP: parallelize verification, not generation</h3>
 
-  <div class="pipeline">
-    <div class="pipeline-title">One MTP cycle, k = 4</div>
+  <p>MTP pairs the target with a <strong>small drafter</strong> (78M parameters in Gemma 4's case — about 1% of the target's compute). The drafter proposes <em>k</em> candidate tokens cheaply, in sequence. The target then verifies all <em>k</em> in a <strong>single parallel forward pass</strong>. Every accepted token is a full token gained at the cost of one drafter step instead of one target step.</p>
+
+  <p>The same five tokens, with MTP at <em>k</em>=4, look like this on the timeline:</p>
+
+  <div class="fig">
+    <div class="fig-title">+ MTP, k=4 · 4 drafts + 1 parallel verify yields up to 5 tokens</div>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-label">+ MTP<span class="sub">drafter + verify</span></div>
+        <div class="tl-track" style="gap:1px;">
+          <span class="tl-block draft d1">·</span>
+          <span class="tl-block draft d2">·</span>
+          <span class="tl-block draft d3">·</span>
+          <span class="tl-block draft d4">·</span>
+          <span class="tl-block target big bv">verify (parallel)</span>
+        </div>
+      </div>
+      <div class="tl-axis"><div></div><div class="tl-axis-track"><span>t=0</span><span>~1.4 t-units</span></div></div>
+      <div class="tl-meter-row">
+        <div class="tl-meter-key">Speedup</div>
+        <div class="tl-meter-val">5 tokens / 1.4 t = <span class="gain">~3.6×</span> theoretical ceiling</div>
+      </div>
+    </div>
+    <div class="fig-caption">Drafter steps (gold) are tiny because the model is ~100× smaller. Target verifies all 4 drafts plus emits a bonus 5th token in one parallel pass.</div>
+  </div>
+
+  <h3>The verification cycle, animated</h3>
+
+  <p>Inside one MTP step: drafter emits 4 token proposals (gold), they flow into the target, target verifies in one shot, accepted tokens (sage) flow into the output stream, the first rejected token (rose) stops the chain. The next cycle starts from there.</p>
+
+  <div class="fig">
+    <div class="fig-title">One MTP cycle, k = 4</div>
     <div class="pipeline-stage">
       <div class="pipeline-box drafter">Drafter<span class="label-sub">~78M params</span></div>
       <div class="pipeline-flow">
@@ -1079,18 +1141,96 @@ footer a { color: var(--ink-soft); }
     </div>
     <div class="pipeline-legend">
       <span class="leg-item"><span class="leg-dot drafter-d"></span>draft proposal</span>
-      <span class="leg-item"><span class="leg-dot target-d"></span>verified / accepted</span>
+      <span class="leg-item"><span class="leg-dot target-d"></span>accepted</span>
       <span class="leg-item"><span class="leg-dot reject-d"></span>rejected from here</span>
     </div>
   </div>
 
-  <p>The bonus: when the target verifies <em>k</em> drafts, it gets the next token "for free" as a side effect of the parallel pass. So a fully-accepted batch yields <em>k+1</em> tokens, not <em>k</em>. The math works out to a theoretical ceiling of about 3× for very predictable continuations — and 1.5–2× for typical code, JSON, and reasoning workloads.</p>
+  <h3>How acceptance rate translates to real speedup</h3>
+
+  <p>The drafter doesn't always agree with the target. Real-world acceptance rates depend on prompt predictability — code and JSON predict cleanly, freeform prose less so. Each cycle yields between <strong>1 token</strong> (worst case: drafter wrong on first token, target falls back to its own next-token output) and <strong>k+1 tokens</strong> (best case: full agreement plus the bonus token). The cost is always ~1 target pass plus <em>k</em> tiny drafter passes:</p>
+
+  <div class="scenarios">
+    <div class="scen">
+      <div class="scen-label">Best case<span class="sub">all 4 accepted + bonus</span></div>
+      <div class="scen-tokens">
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok bonus">+</span>
+      </div>
+      <div class="scen-meter">4.8×<span class="lab">5 tok / 1.04 cost</span></div>
+    </div>
+    <div class="scen">
+      <div class="scen-label">Typical (code, JSON)<span class="sub">3 of 4 accepted</span></div>
+      <div class="scen-tokens">
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok rej">✕</span>
+        <span class="scen-tok bonus">+</span>
+      </div>
+      <div class="scen-meter">3.8×<span class="lab">4 tok / 1.04</span></div>
+    </div>
+    <div class="scen">
+      <div class="scen-label">Mixed prose<span class="sub">2 of 4 accepted</span></div>
+      <div class="scen-tokens">
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok rej">✕</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok bonus">+</span>
+      </div>
+      <div class="scen-meter">2.9×<span class="lab">3 tok / 1.04</span></div>
+    </div>
+    <div class="scen">
+      <div class="scen-label">Hard freeform<span class="sub">1 of 4 accepted</span></div>
+      <div class="scen-tokens">
+        <span class="scen-tok acc">✓</span>
+        <span class="scen-tok rej">✕</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok bonus">+</span>
+      </div>
+      <div class="scen-meter">1.9×<span class="lab">2 tok / 1.04</span></div>
+    </div>
+    <div class="scen">
+      <div class="scen-label">Worst case<span class="sub">drafter wrong immediately</span></div>
+      <div class="scen-tokens">
+        <span class="scen-tok rej">✕</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok skip">·</span>
+        <span class="scen-tok bonus">+</span>
+      </div>
+      <div class="scen-meter warn">0.96×<span class="lab">1 tok / 1.04</span></div>
+    </div>
+  </div>
+
+  <p>The throughput math is exactly:</p>
+
+  <div class="math-card">
+    <div class="math-line"><span class="lbl">Tokens per cycle</span><span class="val">accepted + 1 bonus</span></div>
+    <div class="math-line"><span class="lbl">Cost per cycle</span><span class="val">1 target pass + k × drafter passes</span></div>
+    <div class="math-line"><span class="lbl">Drafter cost ratio</span><span class="val">~1% of target (≈ 0.01)</span></div>
+    <div class="math-line"><span class="lbl">k = 4, drafter ≈ 0.01t</span><span class="val">cost = 1 + 4(0.01) <span class="x">= 1.04</span></span></div>
+    <div class="math-line"><span class="lbl">Real-world acceptance</span><span class="val">~2–3 of 4 on hard prompts</span></div>
+    <div class="math-line"><span class="lbl">Realistic speedup</span><span class="val">~2× — measured below</span></div>
+  </div>
+
+  <h3>Why MTP is lossless</h3>
+
+  <p>At <code>temperature=0</code>, MTP is provably <strong>identical-output</strong> to running the target alone. The trick is the verification step: the target is shown the prompt plus all <em>k</em> draft tokens at once and produces its own next-token logits at every position. A draft is only accepted if the target's <em>top-1 token at that position</em> matches the drafted token. The first mismatch is replaced by the target's own choice and the chain halts. So the output is exactly what the target would have produced step by step — just produced in fewer wall-clock units.</p>
+
+  <p>This is what "up to 3× decode for free" actually means: free in tokens-per-second, free in quality, paid for only in the small extra drafter compute and slightly larger KV-cache footprint.</p>
 </section>
 
 <section>
-  <h2><span class="num">02</span>Why this matters for on-edge LLMs</h2>
-  <p>Running a language model locally instead of through an API has four advantages that compound: <strong>privacy</strong> (prompts stay on the device), <strong>cost</strong> (free after the model download), <strong>latency</strong> (no network round-trip), and <strong>availability</strong> (works offline, on a plane, in a power cut). The block was always speed — local LLMs have been 5–10× slower per token than hosted equivalents.</p>
-  <p>Speculative decoding is the cleanest way to close that gap. And the regime where on-edge wins — <strong>single user, batch size 1, no API quota</strong> — is exactly the regime Google flagged as hardest in their announcement. That made batch=1 Apple Silicon the most interesting cell in the table to actually measure.</p>
+  <h2><span class="num">02</span>Why MTP matters for Gemma 4 on edge</h2>
+  <p>Running Gemma 4 locally on a phone, laptop, or Pi instead of through an API has four advantages that compound: <strong>privacy</strong> (prompts stay on the device), <strong>cost</strong> (free after the model download), <strong>latency</strong> (no network round-trip), and <strong>availability</strong> (works offline). The block was always <em>speed</em> — Gemma 4 on edge has been 5–10× slower per token than hosted equivalents.</p>
+
+  <p>MTP closes that gap most cleanly at exactly the regime edge deployments care about: <strong>single user, batch size 1, no API quota</strong>. Which is exactly the regime Google flagged as hardest in their announcement. That made batch=1 Apple Silicon the most interesting cell in the table to actually measure.</p>
 
   <div class="gquote">
     <p>"the 26B mixture-of-experts model presents <em>unique routing challenges at a batch size of 1 on Apple Silicon</em>... batch sizes of 4 to 8 unlock up to a ~2.2× speedup locally."</p>
@@ -1132,7 +1272,7 @@ footer a { color: var(--ink-soft); }
       <tr><td><span class="runtime-tag rt-llama">llama.cpp</span> Q8_0</td><td>E4B</td><td class="r">39.0</td><td class="r muted">no MTP</td><td class="r muted">—</td></tr>
     </tbody>
   </table></div>
-  <p>LiteRT-LM Metal GPU + MTP is <strong>2.6× faster than transformers+MPS+MTP</strong> and <strong>2.1× faster than llama.cpp Q8_0</strong> on E4B. Three runtimes, same technique, same hardware — and one delivers the headline while the others land between a fifth and a quarter of it.</p>
+  <p>LiteRT-LM Metal GPU + MTP is <strong>2.6× faster than transformers+MPS+MTP</strong> and <strong>2.1× faster than llama.cpp Q8_0</strong> on E4B. Three runtimes, identical technique, identical hardware — and one delivers the headline while the others land between a fifth and a quarter of it.</p>
 </section>
 
 <section>
@@ -1191,7 +1331,7 @@ litert-lm run \
     <div class="dd-card do">
       <div class="dd-head">Do</div>
       <ul>
-        <li>Use LiteRT-LM v0.11.0 Metal GPU + MTP for fastest local Gemma 4</li>
+        <li>Use LiteRT-LM v0.11.0 Metal GPU + MTP for fastest Gemma 4 on edge</li>
         <li>Re-download bundles dated before 2026-05-05</li>
         <li>Pick E4B over E2B if the RAM allows — bigger speedup</li>
         <li>Run real prompts to measure speed; <code>--verbose</code> to confirm</li>
@@ -1217,7 +1357,7 @@ litert-lm run \
     <li><strong>Purpose-built Metal kernel chain.</strong> WebGPU sampler + drafter pipeline are designed for this exact pattern.</li>
     <li><strong>No Python in the hot loop.</strong> <code>transformers</code>' <code>assistant_model</code> wrapper pays per-step Python and bf16-on-MPS overhead. LiteRT-LM stays in compiled C++.</li>
   </ul>
-  <p>The single most useful takeaway from the experiment: <strong>for on-edge LLM inference, runtime choice is at least as important as model choice.</strong> Two runtimes, identical hardware, identical model, identical technique — one delivers the headline, the other delivers a fifth of it.</p>
+  <p>The single most useful takeaway from the experiment: <strong>for Gemma 4 on edge, runtime choice is at least as important as model choice.</strong> Two runtimes, identical hardware, identical model, identical technique — one delivers the headline, the other delivers a fifth of it.</p>
 </section>
 
 <a href="https://github.com/iprajax/gemma4-mtp" class="repo-cta">
@@ -1226,8 +1366,8 @@ litert-lm run \
 </a>
 
 <div class="callout win">
-  <div class="callout-key">Bottom line for on-edge LLMs</div>
-  <p>On-device language model inference just crossed a real threshold this week. <strong>~100 tok/s on Gemma 4 E4B at batch=1</strong> on a 24 GB MacBook is hosted-API-grade speed with zero network. The conditions are specific — one runtime, one bundle vintage, one model size — but they're documented, reproducible, and they hold today. The narrative most posts will run with next week is "MTP doesn't work on Mac." The data says it works better on Mac than any other path.</p>
+  <div class="callout-key">Bottom line for Gemma 4 on edge</div>
+  <p>On-device Gemma 4 inference just crossed a real threshold this week. <strong>~100 tok/s on E4B at batch=1</strong> on a 24 GB MacBook is hosted-API-grade speed with zero network. The conditions are specific — one runtime, one bundle vintage, one model size — but they're documented, reproducible, and they hold today. The narrative most posts will run with next week is "MTP doesn't work on Mac." The data says it works better on Mac than any other path.</p>
 </div>
 
 <footer>
