@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "gemma4-mtp: Multi-Token Prediction benchmarks for Gemma 4 on Apple Silicon"
+message: "If you use these benchmarks or measurements, please cite this repository."
+type: software
+authors:
+  - family-names: Tiwari
+    given-names: Pradeep
+    alias: iprajax
+date-released: 2026-05-06
+url: "https://github.com/iprajax/gemma4-mtp"
+repository-code: "https://github.com/iprajax/gemma4-mtp"
+license: MIT
+keywords:
+  - gemma-4
+  - multi-token-prediction
+  - speculative-decoding
+  - apple-silicon
+  - on-device-ai
+  - edge-ai
+  - litert-lm
+  - benchmark
+  - macos
+  - metal
+abstract: >-
+  A reproducible, single-machine benchmark of Google's Gemma 4 Multi-Token
+  Prediction (MTP) drafters across the three runtimes that can run Gemma 4
+  locally on Apple Silicon (LiteRT-LM, Hugging Face transformers, llama.cpp),
+  measured at single-user batch=1 on a MacBook Pro M4 Pro with 24 GB unified
+  memory. Includes per-prompt detail, two non-obvious gotchas that account for
+  most reports of "MTP not working on Mac" (stale model bundles and synthetic-
+  token benchmarks), and copy-paste reproduction commands.
