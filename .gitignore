@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+.python-version
+
+# Models / large artifacts (download separately)
+models/
+litertlm/
+*.gguf
+*.litertlm
+*.bin
+*.safetensors
+
+# llama.cpp distribution
+turboquant/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+!results/*.log

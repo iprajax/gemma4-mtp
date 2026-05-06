@@ -1,0 +1,15 @@
+[config] bundle=litertlm/gemma-4-E4B-it.litertlm
+[config] backend=gpu  tokenizer=google/gemma-4-E4B-it  repeats=1
+[warmup] priming program cache (2 baseline + 2 mtp)...
+  [code_short    ] base  tok= 621  wall=12.49s  rate= 49.74 tok/s
+  [code_short    ] +mtp  tok= 764  wall= 7.57s  rate=100.87 tok/s
+  [math_chain    ] base  tok= 984  wall=19.11s  rate= 51.49 tok/s
+  [math_chain    ] +mtp  tok= 947  wall= 9.49s  rate= 99.81 tok/s
+  [ide_completion] base  tok=  79  wall= 2.42s  rate= 32.68 tok/s
+  [ide_completion] +mtp  tok=  79  wall= 1.66s  rate= 47.69 tok/s
+=== summary ===
+prompt              base tok/s  +mtp tok/s   speedup   tok base    tok mtp
+mean speedup: 1.81x   median: 1.94x
+Notes:
+- tok/s is end-to-end including ~1-2s per-process init (program cache primed).
+- Output lengths differ between base/mtp at temp=0 due to WebGPU sampler
