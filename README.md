@@ -6,13 +6,15 @@
 
 A controlled, reproducible benchmark of Google's Gemma 4 MTP drafters across the three runtimes that can run Gemma 4 locally on a Mac — at single-user batch=1, the workload shape that defines every on-device LLM running on a laptop.
 
+[![Read on prajax.com](https://img.shields.io/badge/▶%20Read%20the%20full%20blog%20→-prajax.com-1F1B17.svg?style=for-the-badge&labelColor=8A6E45)](https://prajax.com/gemma4-mtp-for-you/)
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-CDA84E.svg?style=flat-square&labelColor=2D2823)](./LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-7E8AA8.svg?style=flat-square&labelColor=2D2823)](https://www.python.org)
 [![transformers ≥ 5.8](https://img.shields.io/badge/transformers-≥%205.8-8A6E45.svg?style=flat-square&labelColor=2D2823)](https://huggingface.co/docs/transformers)
 [![litert-lm 0.11.0](https://img.shields.io/badge/litert--lm-0.11.0-5F7355.svg?style=flat-square&labelColor=2D2823)](https://github.com/google-ai-edge/LiteRT-LM)
 [![Apple Silicon · macOS 26](https://img.shields.io/badge/Apple%20Silicon-macOS%2026-1F1B17.svg?style=flat-square&labelColor=2D2823)](https://www.apple.com/macbook-pro/)
 
-<sub>📖 [Read the blog](https://iprajax.github.io/gemma4-mtp/) · 📊 [Findings](./findings.md) · 🛠 [Reproduce](#reproduce) · ⚙️ [Methodology](#methodology)</sub>
+<sub>📖 [Read on prajax.com](https://prajax.com/gemma4-mtp-for-you/) · 🪞 [Mirror on GitHub Pages](https://iprajax.github.io/gemma4-mtp/) · 📊 [Findings](./findings.md) · 🛠 [Reproduce](#reproduce) · ⚙️ [Methodology](#methodology)</sub>
 
 </div>
 
