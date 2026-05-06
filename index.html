@@ -9,9 +9,26 @@
 <meta property="og:title" content="Gemma 4 on edge: MTP unlocks 2× decode at batch=1" />
 <meta property="og:description" content="Multi-Token Prediction for Gemma 4 explained, animated, and benchmarked. Three runtimes on Apple Silicon. One delivers the headline." />
 <meta property="og:type" content="article" />
+<meta property="article:published_time" content="2026-05-06" />
+<meta property="article:author" content="Pradeep Tiwari" />
+<link rel="canonical" href="https://prajax.com/gemma4-mtp-for-you/" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-SKL9F72CRZ"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-SKL9F72CRZ', {
+  page_title: 'Gemma 4 on edge: Multi-Token Prediction unlocks 2× decode',
+  page_path: '/gemma4-mtp-for-you/',
+  send_page_view: true,
+  cookie_flags: 'SameSite=None;Secure'
+});
+</script>
 <style>
 :root {
   --paper: #F4EFE6;
@@ -1014,9 +1031,41 @@ footer a { color: var(--ink-soft); }
 <main>
 
 <div class="top-meta">
-  <div class="tag"><span class="dot"></span>Released this week</div>
-  <div>2026.05.06 · 9 min read</div>
+  <div class="tag" data-publish="2026-05-06"><span class="dot"></span><span class="tag-text">Released this week</span></div>
+  <div><span data-publish-date="2026-05-06">2026.05.06</span> · 9 min read</div>
 </div>
+<script>
+// Dynamic "released" badge — ages gracefully from a single publish date.
+// No more hardcoded "RELEASED THIS WEEK" that goes stale.
+(function () {
+  const tag = document.querySelector('.tag[data-publish]');
+  if (!tag) return;
+  const text = tag.querySelector('.tag-text');
+  const dateEl = document.querySelector('[data-publish-date]');
+  const publish = new Date(tag.dataset.publish + 'T00:00:00');
+  const now = new Date();
+  const days = Math.floor((now - publish) / 86400000);
+  let label;
+  if (days < 0) label = 'Coming soon';
+  else if (days === 0) label = 'Just released';
+  else if (days === 1) label = 'Released yesterday';
+  else if (days <= 7) label = 'Released this week';
+  else if (days <= 14) label = 'Released last week';
+  else if (days <= 30) label = 'Released this month';
+  else if (days <= 60) label = 'Released last month';
+  else if (days <= 365) {
+    const months = Math.round(days / 30);
+    label = `${months} months ago`;
+  } else {
+    const opts = { year: 'numeric', month: 'long' };
+    label = `Published ${publish.toLocaleDateString('en-US', opts)}`;
+  }
+  if (text) text.textContent = label;
+  if (dateEl) {
+    dateEl.textContent = publish.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+})();
+</script>
 
 <div class="kicker">Gemma 4 · On Edge · MTP Explained</div>
 
