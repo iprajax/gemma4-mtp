@@ -1079,7 +1079,7 @@ footer a { color: var(--ink-soft); }
     <li>Google's <a href="https://blog.google/innovation-and-ai/technology/developers-tools/multi-token-prediction-gemma-4/">MTP announcement</a> claims <strong>up to 3×</strong>. For Gemma 4 on edge at batch=1, the realistic ceiling is <strong>~2×</strong>, in <strong>one specific runtime</strong>.</li>
     <li>That runtime is <strong>LiteRT-LM v0.11.0 + Metal GPU</strong>. Gemma 4 E4B real prompts: <strong>2.03× speedup, ~100 tok/s</strong>.</li>
     <li>Hugging Face <code>transformers</code> + MPS gives <strong>1.04–1.24×</strong>. <code>llama.cpp</code> can't engage MTP at all (no <code>gemma4_assistant</code> arch upstream).</li>
-    <li>Two gotchas almost flip the conclusion: <strong>stale model bundles</strong> silently disable MTP, and the bundled synthetic benchmark hides the speedup.</li>
+    <li>One gotcha hides the win: the <strong>bundled synthetic benchmark</strong> uses random tokens, drafter acceptance is ~0%, MTP reads as a regression. Use real prompts.</li>
     <li>Source &amp; commands → <a href="https://github.com/iprajax/gemma4-mtp">github.com/iprajax/gemma4-mtp</a></li>
   </ul>
 </div>
@@ -1325,33 +1325,15 @@ footer a { color: var(--ink-soft); }
 </section>
 
 <section>
-  <h2><span class="num">05</span>Two gotchas that flip the conclusion</h2>
-  <p>The default-configured benchmark on a freshly installed runtime can read MTP as a no-op or even a regression. Two specific failure modes are responsible.</p>
+  <h2><span class="num">05</span>The benchmark trap</h2>
+  <p>The single most common reason MTP looks broken on Apple Silicon: the default measurement tool is the wrong tool for the job.</p>
 
-  <h3>Gotcha 1 · Stale model bundle</h3>
-  <p>Google re-cut the <code>litert-community/gemma-4-*-litert-lm</code> bundles on May 5 to add MTP wiring metadata. Bundles downloaded earlier load the drafter weights but the engine config silently stays <code>enable_speculative_decoding: false</code> — even when the CLI flag passes <code>true</code>. The verbose log shows the disagreement:</p>
-
-  <div class="trap">
-    <div class="trap-card stale">
-      <div class="trap-head">Stale bundle (pre-2026-05-05)</div>
-      <div class="trap-flag"><span class="lbl">CLI flag</span><span class="val true">true</span></div>
-      <div class="trap-flag"><span class="lbl">Engine config</span><span class="val false">false</span></div>
-      <div style="font-size:12px;color:var(--rose);margin-top:8px;font-weight:500;">No speedup. MTP looks broken.</div>
-    </div>
-    <div class="trap-card fresh">
-      <div class="trap-head">Fresh bundle (post-2026-05-05)</div>
-      <div class="trap-flag"><span class="lbl">CLI flag</span><span class="val true">true</span></div>
-      <div class="trap-flag"><span class="lbl">Engine config</span><span class="val true">true</span></div>
-      <div style="font-size:12px;color:var(--sage);margin-top:8px;font-weight:500;">MTP engages. ~2× speedup.</div>
-    </div>
-  </div>
-
-  <p style="font-size:13.5px;color:var(--ink-soft);"><strong>Fix:</strong> wipe the local bundle and re-pull from the Hugging Face repo. Verify with <code>--verbose | grep "Speculative decoding"</code> — must print <code>true</code>.</p>
-
-  <h3>Gotcha 2 · Synthetic benchmarks lie</h3>
   <div class="callout warn">
+    <span class="callout-key">Synthetic benchmarks lie</span>
     <p>The bundled <code>litert-lm benchmark</code> command decodes <strong>random tokens</strong>. Drafter acceptance rate on random sequences is ≈ 0%, which makes MTP pure verification overhead — and reads as a regression. A correctly engaged MTP path scored <strong>0.93×</strong> through this tool versus 1.79–2.03× through real prompts. Use <code>litert-lm run</code> with externally-timed real prompts. <code>bench_litertlm.py</code> in the repo does this in 110 lines.</p>
   </div>
+
+  <p>The fix is in the script repo: <code>bench_litertlm.py</code> spawns <code>litert-lm run</code> per prompt, times wall-clock externally, and counts output tokens with the matching Hugging Face tokenizer to compute true tok/s. That's the measurement that produces the 2.03× result above.</p>
 </section>
 
 <section>
@@ -1416,7 +1398,7 @@ litert-lm run \
 
 <div class="callout win">
   <div class="callout-key">Bottom line for Gemma 4 on edge</div>
-  <p>On-device Gemma 4 inference just crossed a real threshold this week. <strong>~100 tok/s on E4B at batch=1</strong> on a 24 GB MacBook is hosted-API-grade speed with zero network. The conditions are specific — one runtime, one bundle vintage, one model size — but they're documented, reproducible, and they hold today. The narrative most posts will run with next week is "MTP doesn't work on Mac." The data says it works better on Mac than any other path.</p>
+  <p>On-device Gemma 4 inference just crossed a real threshold this week. <strong>~100 tok/s on E4B at batch=1</strong> on a 24 GB MacBook is hosted-API-grade speed with zero network. The conditions are specific — one runtime, one model size, real-prompt measurement — but they're documented, reproducible, and they hold today. The narrative most posts will run with next week is "MTP doesn't work on Mac." The data says it works better on Mac than any other path.</p>
 </div>
 
 <footer>

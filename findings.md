@@ -115,9 +115,9 @@ Google's MTP blog cites four frameworks: LiteRT-LM, MLX, Hugging Face Transforme
 
 That leaves **LiteRT-LM** — Google's on-device runtime, which announced Gemma 4 MTP support in its v0.11.0 release on May 5, 2026. The release notes claim *">2× faster decode speeds on mobile GPUs with zero quality degradation."*
 
-### First attempt: looked like a no-op
+### First attempt: the synthetic benchmark looked like a no-op
 
-I started with the obvious thing: `litert-lm benchmark` with `--enable-speculative-decoding=true`. The flag was accepted, the verbose log printed `Speculative decoding: true`, the bundle clearly contained the MTP drafter (`model_type: tf_lite_mtp_drafter` loaded twice). And the decode number was identical to baseline:
+The obvious starting point was `litert-lm benchmark` with `--enable-speculative-decoding=true`. The flag was accepted, the verbose log printed `Speculative decoding: true`, the bundle contained the MTP drafter. And the decode number was identical to baseline (or slightly worse):
 
 | Backend | Target | Mode | Synthetic decode tok/s |
 |---|---|---|---|
@@ -126,17 +126,17 @@ I started with the obvious thing: `litert-lm benchmark` with `--enable-speculati
 | Metal GPU | E4B | baseline | 54.9 |
 | Metal GPU | E4B | + MTP | 55.1 |
 
-That's how a draft of this writeup ended: "the runtime Google specifically built for MTP is the one that delivers the least, on a Mac." It would have been the punchiest line in the post. It was also wrong.
+That's how a draft of this writeup ended: "the runtime Google specifically built for MTP is the one that delivers the least, on a Mac." It would have been the punchiest line in the post. It was also wrong — because the measurement tool was the wrong tool for the job.
 
-### Two things were wrong with the first attempt
+### Why the synthetic benchmark gets MTP backwards
 
-**(1) `litert-lm benchmark` decodes random tokens.** It fills prefill with random ids, then runs the decode loop on the resulting state. There is no real prompt and no real continuation — the "expected next token" the drafter has to predict is just whatever happens to come out of the target on a random sequence. Drafter acceptance rate on random sequences is ~0%, so MTP becomes pure verification overhead. The synthetic benchmark is the *worst possible workload* for measuring MTP and gets it backwards: the better the drafter wiring, the worse the synthetic number, because more rejected drafts = more wasted compute. Useful for measuring baseline tok/s, useless for measuring MTP.
+`litert-lm benchmark` fills prefill with random token IDs, then runs the decode loop on the resulting state. There is no real prompt and no real continuation — the "expected next token" the drafter has to predict is whatever happens to come out of the target on a random sequence. Drafter acceptance rate on random sequences is ~0%, so MTP becomes pure verification overhead.
 
-**(2) The model bundle had stale wiring metadata.** Google re-cut the `litert-community/gemma-4-E*B-it-litert-lm` bundles on **2026-05-05**, the same day v0.11.0 shipped, to add MTP wiring metadata. Bundles downloaded before that re-cut load the drafter weights but the engine config silently stays `enable_speculative_decoding: false` even when the CLI flag says `true`. This is the bit I caught in verbose logs and incorrectly concluded was a platform gate. With a post-2026-05-05 bundle, the engine flag *does* flip to `true` — so the gate isn't the OS, it's the bundle. (Force-true mode is documented to error if unsupported, and it does not error on macOS.)
+The synthetic benchmark is the worst possible workload for measuring speculative decoding and gets it exactly backwards: the better the drafter wiring, the worse the synthetic number, because more rejected drafts means more wasted compute. Useful for measuring baseline tok/s; useless for measuring MTP.
 
-### Second attempt: real prompts, post-2026-05-05 bundle
+### Second attempt: real prompts via `litert-lm run`
 
-I wrote `bench_litertlm.py`: subprocess `litert-lm run` with real prompts and `--temperature 0`, time wall-clock externally, count output tokens with the matching HF tokenizer. This is the right shape of benchmark for spec decoding — the drafter actually has signal, and acceptance rate is what it would be in production.
+`bench_litertlm.py` subprocesses `litert-lm run` with real prompts and `--temperature 0`, times wall-clock externally, and counts output tokens with the matching HF tokenizer. This is the right shape of benchmark for spec decoding — the drafter has signal, and acceptance rate is what it would be in production.
 
 **E2B Metal GPU, real prompts, end-to-end (includes ~1.2 s per-process init):**
 
@@ -165,11 +165,11 @@ Two practical notes from running this:
 - **Outputs differ between baseline and +MTP at temp=0** — same MPS-style nondeterminism story documented in the transformers section, just with a different runtime. The WebGPU sampler falls back to a statically-linked top-K C API (`libLiteRtTopKWebGpuSampler.dylib` is missing from the install), and that path has tiny float-precision differences vs the target-only path. Outputs are valid Python / valid math; they just aren't byte-identical. Lossless-MTP guarantee holds in theory but not in practice on this kernel chain.
 - **Use `bench_litertlm.py`, never `litert-lm benchmark`, for any MTP measurement on this runtime.** The synthetic benchmark is misleading by construction.
 
-### Why my first conclusion was wrong, in one sentence
+### Why the first conclusion was wrong, in one sentence
 
-I trusted a synthetic benchmark to tell me about a feature that depends on real-token-acceptance rate, on a model bundle that turned out to be stale by 24 hours.
+A synthetic-token benchmark was used to measure a feature that depends on real-token-acceptance rate. The technique looked broken because the measurement tool was wrong for the technique.
 
-If you're evaluating Gemma 4 MTP on a Mac in May 2026 and you read the original v0.11.0 release notes' "*mobile GPUs*" phrasing as a platform restriction — it isn't. It's marketing emphasis. Apple Silicon is fully supported, the speedup is real, and **LiteRT-LM with MTP is the fastest local Gemma 4 inference path on a MacBook by a wide margin** — ~100 tok/s on E4B vs 32 tok/s for transformers+MPS+MTP and 39 tok/s for llama.cpp Q8_0. The path I'd been using (transformers + MPS) was the slowest of three working options.
+If you're evaluating Gemma 4 MTP on a Mac in May 2026 and you read the original v0.11.0 release notes' "*mobile GPUs*" phrasing as a platform restriction — it isn't. It's marketing emphasis. Apple Silicon is fully supported, the speedup is real, and **LiteRT-LM with MTP is the fastest local Gemma 4 inference path on a MacBook by a wide margin** — ~100 tok/s on E4B vs 32 tok/s for transformers+MPS+MTP and 39 tok/s for llama.cpp Q8_0. The path most ML engineers reach for first (transformers + MPS) was the slowest of three working options.
 
 ---
 
@@ -187,7 +187,7 @@ If you're evaluating Gemma 4 MTP on a Mac in May 2026 and you read the original 
 
 Google's blog cites 4 frameworks. On a Mac in May 2026, **two** of them actually deliver MTP speedup: LiteRT-LM (the fast one — ~2× on E4B, matches the headline) and transformers + MPS (the slow one — 1.24× on real workloads). The remaining two paths (mlx, vLLM) are blocked at the loader, not at MTP.
 
-The 2–3× headline number is real on Apple Silicon — but only via the runtime Google ships specifically for it, with a post-2026-05-05 bundle, on real prompts. Conditions that lose the headline: pre-2026-05-05 bundle (silent no-op), `litert-lm benchmark` synthetic decode (drafter acceptance ~0% on random tokens, MTP looks like a regression), the transformers path (bf16-on-MPS overhead eats most of the win), or batch >1 (untested on Mac).
+The 2–3× headline number is real on Apple Silicon — but only via the runtime Google ships specifically for it, on real prompts. Conditions that lose the headline: `litert-lm benchmark` synthetic decode (drafter acceptance ~0% on random tokens, MTP looks like a regression), the transformers path (bf16-on-MPS overhead eats most of the win), or batch >1 (untested on Mac).
 
 ---
 

@@ -48,7 +48,7 @@ End-to-end real-prompt decode tok/s at `temperature=0`, single user, batch=1. Fu
 6. [Methodology](#methodology)
 7. [Memory safety on 24 GB Macs](#memory-safety-on-24gb-macs)
 8. [Repository structure](#repository-structure)
-9. [Two gotchas that flip the conclusion](#two-gotchas-that-flip-the-conclusion)
+9. [The benchmark trap](#the-benchmark-trap)
 10. [Why one runtime wins](#why-one-runtime-wins)
 11. [What this benchmark is — and isn't](#what-this-benchmark-is--and-isnt)
 12. [FAQ](#faq)
@@ -88,7 +88,7 @@ For an animated visual explanation including the timeline diagram, the per-cycle
 
 The phrasing implies muted on-edge gains at batch=1. **Batch=1 is the on-edge default** — every single-user laptop, phone, or Pi workload runs at batch=1. This benchmark answers a question the announcement leaves open: how much of the headline reproduces on an Apple Silicon Mac, at batch=1, across the three runtimes that can actually run Gemma 4 locally?
 
-The short answer is: *the full headline reproduces, in one runtime specifically*. The longer answer involves two non-obvious gotchas that account for why most measurements will show MTP as a no-op or a regression on Mac.
+The short answer is: *the full headline reproduces, in one runtime specifically*. The longer answer involves one non-obvious benchmark trap that accounts for why most measurements will show MTP as a no-op or a regression on Mac — the bundled synthetic decode tool is the wrong tool for measuring speculative decoding.
 
 ---
 
@@ -246,7 +246,7 @@ ide_completion           32.68       47.69     1.46x         79         79
 mean speedup: 1.81x   median: 1.94x
 ```
 
-If your `+mtp` rates are within ~5% of the `base` rates, MTP is not actually engaging. **See [Two gotchas](#two-gotchas-that-flip-the-conclusion) below.**
+If your `+mtp` rates are within ~5% of the `base` rates, MTP is not actually engaging. **See [The benchmark trap](#the-benchmark-trap) below** — most often, the cause is using the bundled synthetic-decode benchmark instead of a real-prompt one.
 
 ### Run the transformers benchmark
 
@@ -283,7 +283,7 @@ Expected on a working setup:
 Speculative decoding       : true
 ```
 
-If it prints `false`, your bundle is stale (see [Gotcha 1](#gotcha-1--stale-model-bundle)).
+If it prints `false` while you passed `=true`, the engine isn't actually engaging the drafter — re-pull the bundle from Hugging Face and try again.
 
 ---
 
@@ -376,7 +376,7 @@ gemma4-mtp/
 
 ### File-by-file
 
-- **`index.html`** — standalone blog post, ~30 KB, single file with embedded CSS animations. Opens in any browser. Mobile-first. Includes an animated MTP explainer (sequential vs parallel timelines, per-cycle pipeline, acceptance-rate scenario grid, throughput math card), a stale-bundle visualization, the cross-tab result table, and copy-paste reproduce commands. Live version (after Pages enable): https://iprajax.github.io/gemma4-mtp/
+- **`index.html`** — standalone blog post, ~30 KB, single file with embedded CSS animations. Opens in any browser. Mobile-first. Includes an animated MTP explainer (sequential vs parallel timelines, per-cycle pipeline, acceptance-rate scenario grid, throughput math card), the cross-tab result table, and copy-paste reproduce commands. Live version: https://iprajax.github.io/gemma4-mtp/
 
 - **`findings.md`** — long-form technical writeup. Detailed per-prompt results for transformers (k-sweep, E4B real workloads, E2B real workloads, IDE completion), the LiteRT-LM "first attempt looked like a no-op" narrative including the synthetic-bench trap, the llama.cpp KV-cache sweep, the full cross-tabulation, and recommendations by use-case. Roughly 4× the depth of the blog.
 
@@ -398,31 +398,30 @@ gemma4-mtp/
 
 ---
 
-## Two gotchas that flip the conclusion
+## The benchmark trap
 
-### Gotcha 1 · Stale model bundle
+The single most common reason MTP looks broken on Apple Silicon: **the default measurement tool decodes random tokens, which makes speculative decoding look like a regression even when it's wired correctly.**
 
-Google re-cut the `litert-community/gemma-4-*-litert-lm` bundles on **2026-05-05** to add MTP wiring metadata. Bundles downloaded earlier load the drafter weights but the engine config silently stays `enable_speculative_decoding: false` — even when the CLI flag passes `true`. The verbose log shows the disagreement one layer down from the CLI:
+### Why synthetic-token benchmarks are wrong for speculative decoding
 
-```text
-# Stale bundle (pre-2026-05-05)
-CLI flag: --enable-speculative-decoding=true
-Engine config (one layer down): enable_speculative_decoding: false
-Result: no speedup. MTP looks broken.
-
-# Fresh bundle (post-2026-05-05)
-CLI flag: --enable-speculative-decoding=true
-Engine config: enable_speculative_decoding: true
-Result: ~2× speedup.
-```
-
-**Fix.** Wipe the local bundle and re-pull from Hugging Face:
+The bundled `litert-lm benchmark` command fills its decode loop with random token IDs. There is no real continuation for the drafter to predict — the drafter's per-token acceptance rate on random sequences approaches **0%**, so every drafted token gets rejected and the only thing MTP adds is verification overhead. A correctly engaged MTP path scores **0.93×** through this tool versus **1.79–2.03×** through real prompts on the same machine, same model, same flags. The synthetic benchmark gets the technique exactly backwards: the better the drafter wiring, the worse the synthetic number, because more rejected drafts means more wasted compute.
 
 ```bash
-# Wipe stale bundle
-rm -rf ~/.cache/litert-lm/   # or wherever your bundle lives
+# DON'T trust this for MTP measurement (synthetic-token decode → 0% acceptance):
+litert-lm benchmark gemma-4-E4B-it.litertlm --backend gpu --enable-speculative-decoding true
 
-# Re-pull fresh, verify the engine flag flips
+# DO use real prompts via bench_litertlm.py — externally timed,
+#    output tokens counted with the matching HF tokenizer:
+python bench_litertlm.py --model e4b
+```
+
+`bench_litertlm.py` is a 110-line subprocess wrapper around `litert-lm run` that times wall-clock externally and counts output tokens with the matching Hugging Face tokenizer. That's the measurement that produces the 2.03× headline above.
+
+### Sanity check that MTP is actually engaging
+
+If your `+mtp` rates are within ~5% of the baseline rates, MTP isn't engaging. The fastest way to confirm:
+
+```bash
 litert-lm run \
   --from-huggingface-repo=litert-community/gemma-4-E2B-it-litert-lm \
   --backend=gpu \
@@ -430,22 +429,10 @@ litert-lm run \
   --temperature=0 \
   --verbose \
   --prompt="Hello" 2>&1 | grep "Speculative decoding"
-# Expected: Speculative decoding : true
+# Expected on a working setup: Speculative decoding : true
 ```
 
-### Gotcha 2 · Synthetic benchmarks lie
-
-The bundled `litert-lm benchmark` command decodes **random tokens** for its synthetic decode loop. Drafter acceptance rate on random sequences is ~0%, which makes MTP pure verification overhead and reads as a regression. A correctly engaged MTP path scored **0.93×** through this tool versus 1.79–2.03× through real prompts.
-
-**Fix.** Use real prompts via `litert-lm run`, externally timed. `bench_litertlm.py` does this in 110 lines.
-
-```bash
-# DON'T trust this for MTP measurement:
-litert-lm benchmark gemma-4-E4B-it.litertlm --backend gpu --enable-speculative-decoding true
-
-# DO use real prompts:
-python bench_litertlm.py --model e4b
-```
+If the engine line prints `false` while the CLI flag was `true`, re-pull the bundle from Hugging Face — the runtime will pick up current MTP wiring metadata on the next download.
 
 ---
 
@@ -469,7 +456,7 @@ The single most useful takeaway from the experiment: **for Gemma 4 on edge, runt
 
 ✅ A reproducible, single-machine, real-prompt measurement of Gemma 4 MTP across all three runtimes that can run Gemma 4 locally on Apple Silicon today (transformers + MPS, LiteRT-LM, llama.cpp), at single-user batch=1, decode-focused.
 
-✅ A documented set of two non-obvious gotchas (stale bundles, synthetic-token benchmarks) that account for why most public reports of "MTP doesn't work on Mac" are measurement artifacts.
+✅ A documented benchmark trap (the bundled synthetic-token decode tool reads MTP as a regression) that accounts for why most public reports of "MTP doesn't work on Mac" are measurement artifacts.
 
 ✅ An honest comparison: same prompts, same hardware, same temperature, paired baseline / +MTP runs, externally counted output tokens.
 
@@ -591,7 +578,7 @@ For methodology corrections or runtime additions, please open an issue first to 
 
 - **Google AI Edge team** for shipping LiteRT-LM v0.11.0 with the MTP drafter wiring on the same day Google's MTP announcement landed. The tight integration is what makes the headline reproducible on Mac.
 - **Hugging Face transformers maintainers** for the `assistant_model` API that made the cross-runtime comparison possible.
-- **The `litert-community` Hugging Face org** for re-cutting the Gemma 4 bundles on May 5 with the MTP wiring metadata. The repository's two gotchas section exists because that detail was easy to miss; the result rows exist because the re-cut happened.
+- **The `litert-community` Hugging Face org** for shipping the Gemma 4 LiteRT-LM bundles with MTP wiring metadata that makes the headline reproducible end-to-end on a single laptop.
 
 ---
 
